@@ -190,3 +190,46 @@ Potential enhancements include:
 ## Purpose
 
 This project was built as a hands-on cloud engineering and security portfolio project to demonstrate the ability to deploy, secure, troubleshoot, and validate a multi-tier Azure environment using Infrastructure as Code.
+
+
+
+
+## Architecture Diagram
+
+```text
+                         INTERNET
+                            |
+                         HTTP :80
+                            |
+                            v
+                  +-------------------+
+                  |     WEB TIER      |
+                  |      vm-web       |
+                  |       Nginx       |
+                  |   10.20.1.0/24    |
+                  +---------+---------+
+                            |
+                         TCP 5000
+                    NSG: Web -> App
+                            |
+                            v
+                  +-------------------+
+                  |     APP TIER      |
+                  |      vm-app       |
+                  |     Flask API     |
+                  |   10.20.2.0/24    |
+                  +---------+---------+
+                            |
+                         TCP 5432
+                    NSG: App -> DB
+                            |
+                            v
+                  +-------------------+
+                  |   DATABASE TIER   |
+                  |       vm-db       |
+                  |    PostgreSQL     |
+                  |   10.20.3.0/24    |
+                  +-------------------+
+```
+
+Terraform manages the Azure infrastructure, including the virtual network, subnets, NSGs, network interfaces, and virtual machines.
