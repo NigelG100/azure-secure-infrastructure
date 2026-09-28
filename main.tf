@@ -94,6 +94,18 @@ resource "azurerm_network_security_group" "app" {
     source_address_prefix      = "10.20.1.0/24"
     destination_address_prefix = "10.20.2.0/24"
   }
+  security_rule {
+    name                       = "Deny-Other-VNet-Inbound"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "*"
+  }
+
   tags = {
     Environment = "Portfolio"
     Project     = "Secure-Azure-Infrastructure"
@@ -117,6 +129,17 @@ resource "azurerm_network_security_group" "db" {
     source_address_prefix      = "10.20.2.0/24"
     destination_address_prefix = "10.20.3.0/24"
   }
+  security_rule {
+    name                       = "Deny-Other-VNet-Inbound"
+    priority                   = 400
+    direction                  = "Inbound"
+    access                     = "Deny"
+    protocol                   = "*"
+    source_port_range          = "*"
+    destination_port_range     = "*"
+    source_address_prefix      = "VirtualNetwork"
+    destination_address_prefix = "*"
+  }
 
   tags = {
     Environment = "Portfolio"
@@ -135,6 +158,11 @@ resource "azurerm_subnet_network_security_group_association" "web" {
 resource "azurerm_subnet_network_security_group_association" "app" {
   subnet_id                 = azurerm_subnet.app.id
   network_security_group_id = azurerm_network_security_group.app.id
+}
+
+resource "azurerm_subnet_network_security_group_association" "db" {
+  subnet_id                 = azurerm_subnet.db.id
+  network_security_group_id = azurerm_network_security_group.db.id
 }
 
 resource "azurerm_public_ip" "web" {
