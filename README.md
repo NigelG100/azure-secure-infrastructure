@@ -191,6 +191,18 @@ Potential enhancements include:
 
 This project was built as a hands-on cloud engineering and security portfolio project to demonstrate the ability to deploy, secure, troubleshoot, and validate a multi-tier Azure environment using Infrastructure as Code.
 
+## Security Controls and Validation
+
+The environment uses subnet-level Network Security Groups (NSGs) to enforce least-privilege communication between application tiers.
+
+- Web → App: TCP/5000 allowed
+- App → Database: TCP/5432 allowed
+- Web → Database: TCP/5432 explicitly blocked
+- Web → App traffic not explicitly permitted by higher-priority NSG rules is blocked
+- App and Database NSGs include explicit VNet deny rules to override Azure's default AllowVNetInBound behavior
+- Database subnet is protected by its dedicated NSG
+
+Connectivity was validated from the Azure VMs using TCP connection testing to confirm both permitted and denied traffic paths.
 
 
 
