@@ -15,30 +15,30 @@ The environment separates the web, application, and database layers into dedicat
                        |
                     HTTP :80
                        |
-                 +-------------+
-                 |   Web Tier  |
-                 |   Nginx     |
-                 |   vm-web    |
-                 | 10.20.1.0/24|
-                 +-------------+
+                +-------------+
+                |   Web Tier  |
+                |   Nginx     |
+                |   vm-web    |
+                | 10.20.1.0/24|
+                +-------------+
                        |
-                 TCP 5000 only
+                  TCP 5000 only
                        |
-                 +-------------+
-                 |  App Tier   |
-                 | Flask API   |
-                 |   vm-app    |
-                 | 10.20.2.0/24|
-                 +-------------+
+                +-------------+
+                |  App Tier   |
+                | Flask API   |
+                |   vm-app    |
+                | 10.20.2.0/24|
+                +-------------+
                        |
-                 TCP 5432 only
+                  TCP 5432 only
                        |
-                 +-------------+
-                 | Database    |
-                 | PostgreSQL  |
-                 |    vm-db    |
-                 | 10.20.3.0/24|
-                 +-------------+
+                +-------------+
+                | Database    |
+                | PostgreSQL  |
+                |   vm-db     |
+                | 10.20.3.0/24|
+                +-------------+
 ```
 
 ## Technologies Used
@@ -51,6 +51,7 @@ The environment separates the web, application, and database layers into dedicat
 - Linux / Ubuntu
 - Nginx
 - Python / Flask
+- psycopg2
 - PostgreSQL
 - Azure CLI
 - Git / GitHub
@@ -77,8 +78,10 @@ Network Security Groups enforce communication boundaries between tiers.
 - SSH administrative access to the web tier is restricted to a specific source IP.
 - Web-to-application traffic is restricted to TCP port 5000.
 - Application-to-database traffic is restricted to PostgreSQL TCP port 5432.
-- The application and database VMs do not require public-facing application endpoints.
-- Terraform state files and local Terraform directories are excluded from source control.
+- Web-to-database traffic on TCP port 5432 is explicitly blocked.
+- App and Database NSGs include explicit VNet deny rules to override Azure's default `AllowVNetInBound` behavior.
+- The application and database VMs do not expose public-facing application endpoints.
+- Terraform state files, variable files containing sensitive values, and local Terraform directories are excluded from source control.
 
 This design reduces unnecessary exposure and demonstrates network segmentation and least-privilege access.
 
@@ -101,17 +104,35 @@ Flask Application
 PostgreSQL Database
 ```
 
-Nginx acts as the public-facing reverse proxy and forwards API requests to the Flask application running on the private application tier.
+Nginx acts as the public-facing reverse proxy and forwards `/api/` requests to the Flask application running on the private application tier.
 
-The Flask application then communicates with PostgreSQL on the private database tier.
+The Flask application uses `psycopg2` to communicate with PostgreSQL on the private database tier.
 
 ## Validation
 
-End-to-end connectivity was tested after deployment.
+The deployed environment was validated at both the network and application layers.
 
-The application API successfully communicated with PostgreSQL through the segmented network:
+Network connectivity testing confirmed the intended segmentation:
 
-```json
+- Web → Application on TCP/5000: allowed
+- Application → Database on TCP/5432: allowed
+- Web → Database on TCP/5432: blocked
+
+The public Nginx endpoint was then used to validate the complete application path.
+
+Health endpoint:
+
+```text
+GET /api/health
+
+{"status":"healthy"}
+```
+
+Database-backed endpoint:
+
+```text
+GET /api/database
+
 {
   "database": "connected",
   "project": "Secure Azure Infrastructure",
@@ -119,13 +140,24 @@ The application API successfully communicated with PostgreSQL through the segmen
 }
 ```
 
-This validates the complete traffic path:
+The `/api/database` request follows the complete path:
 
 ```text
-Internet -> Web Tier -> Application Tier -> Database Tier
+Internet
+   |
+   v
+Nginx (Web Tier)
+   |
+   | TCP/5000
+   v
+Flask API (Application Tier)
+   |
+   | TCP/5432
+   v
+PostgreSQL (Database Tier)
 ```
 
-while maintaining network separation between the three layers.
+The response is generated from data retrieved by the Flask application from PostgreSQL, validating functional communication across all three tiers while maintaining network segmentation.
 
 ## Infrastructure as Code
 
@@ -154,9 +186,23 @@ azure-secure-infrastructure/
 |-- variables.tf
 |-- outputs.tf
 |-- providers.tf
+|
+|-- scripts/
+|   |-- web-setup.sh
+|   |-- app-setup.sh
+|   |-- db-setup.sh
+|
 |-- .gitignore
 |-- README.md
 ```
+
+The setup scripts make the application stack reproducible:
+
+- `web-setup.sh` installs and configures Nginx as a reverse proxy to the private application tier.
+- `app-setup.sh` installs Flask and `psycopg2`, deploys the API, configures PostgreSQL connectivity, and runs the application as a systemd service.
+- `db-setup.sh` configures PostgreSQL network access, creates the application role and database, initializes the `project_status` table, and grants the required permissions.
+
+Database credentials are supplied at runtime rather than stored directly in the committed setup scripts. Local Terraform variable files containing sensitive values are excluded through `.gitignore`.
 
 ## Key Skills Demonstrated
 
@@ -167,12 +213,13 @@ azure-secure-infrastructure/
 - Network Security Groups
 - Linux server administration
 - Nginx reverse proxy configuration
-- REST API deployment
-- PostgreSQL configuration
-- Private tier-to-tier connectivity
+- Python / Flask API deployment
+- PostgreSQL configuration and connectivity
+- Private tier-to-tier communication
 - Azure CLI administration
-- Git version control
-- Cloud troubleshooting
+- Git / GitHub version control
+- Network and application troubleshooting
+- End-to-end infrastructure validation
 
 ## Future Improvements
 
@@ -190,58 +237,3 @@ Potential enhancements include:
 ## Purpose
 
 This project was built as a hands-on cloud engineering and security portfolio project to demonstrate the ability to deploy, secure, troubleshoot, and validate a multi-tier Azure environment using Infrastructure as Code.
-
-## Security Controls and Validation
-
-The environment uses subnet-level Network Security Groups (NSGs) to enforce least-privilege communication between application tiers.
-
-- Web → App: TCP/5000 allowed
-- App → Database: TCP/5432 allowed
-- Web → Database: TCP/5432 explicitly blocked
-- Web → App traffic not explicitly permitted by higher-priority NSG rules is blocked
-- App and Database NSGs include explicit VNet deny rules to override Azure's default AllowVNetInBound behavior
-- Database subnet is protected by its dedicated NSG
-
-Connectivity was validated from the Azure VMs using TCP connection testing to confirm both permitted and denied traffic paths.
-
-
-
-## Architecture Diagram
-
-```text
-                         INTERNET
-                            |
-                         HTTP :80
-                            |
-                            v
-                  +-------------------+
-                  |     WEB TIER      |
-                  |      vm-web       |
-                  |       Nginx       |
-                  |   10.20.1.0/24    |
-                  +---------+---------+
-                            |
-                         TCP 5000
-                    NSG: Web -> App
-                            |
-                            v
-                  +-------------------+
-                  |     APP TIER      |
-                  |      vm-app       |
-                  |     Flask API     |
-                  |   10.20.2.0/24    |
-                  +---------+---------+
-                            |
-                         TCP 5432
-                    NSG: App -> DB
-                            |
-                            v
-                  +-------------------+
-                  |   DATABASE TIER   |
-                  |       vm-db       |
-                  |    PostgreSQL     |
-                  |   10.20.3.0/24    |
-                  +-------------------+
-```
-
-Terraform manages the Azure infrastructure, including the virtual network, subnets, NSGs, network interfaces, and virtual machines.
