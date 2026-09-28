@@ -1,0 +1,26 @@
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+crash.*.log
+
+# Terraform variable files / secrets
+*.tfvars
+*.tfvars.json
+
+# SSH keys
+*.pem
+*.key
+id_rsa
+id_rsa.pub
+
+# Local setup scripts containing credentials
+dbsetup.sh
+appsetup.sh
+
+# OS / editor files
+.DS_Store
+Thumbs.db
+.vscode/
