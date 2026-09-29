@@ -45,7 +45,7 @@ def health():
     return jsonify(status="healthy")
 
 
-@app.route("/api/database")
+@app.route("/database")
 def database():
     try:
         connection = psycopg2.connect(
