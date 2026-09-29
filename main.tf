@@ -68,7 +68,7 @@ resource "azurerm_network_security_group" "web" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = "76.210.21.91/32"
+    source_address_prefix      = var.admin_source_ip
     destination_address_prefix = "*"
   }
   tags = {
@@ -204,29 +204,7 @@ resource "azurerm_linux_virtual_machine" "web" {
   location            = azurerm_resource_group.project.location
   size                = "Standard_F1als_v7"
   admin_username      = "azureadmin"
-  custom_data = base64encode(<<-EOF
-  #!/bin/bash
-  apt-get update -y
-  apt-get install -y nginx
-
-  cat > /var/www/html/index.html <<'HTML'
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <title>Secure Azure Infrastructure</title>
-  </head>
-  <body>
-    <h1>Secure Azure Infrastructure</h1>
-    <p>Deployed with Terraform on Microsoft Azure.</p>
-    <p>NGINX configuration automated with cloud-init.</p>
-  </body>
-  </html>
-  HTML
-
-  systemctl enable nginx
-  systemctl restart nginx
-EOF
-  )
+  custom_data         = base64encode(file("${path.module}/scripts/web-setup.sh"))
   network_interface_ids = [
     azurerm_network_interface.web.id
   ]
@@ -269,7 +247,8 @@ resource "azurerm_network_interface" "app" {
   ip_configuration {
     name                          = "app-ipconfig"
     subnet_id                     = azurerm_subnet.app.id
-    private_ip_address_allocation = "Dynamic"
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.20.2.4"
   }
 
   tags = {
@@ -286,53 +265,13 @@ resource "azurerm_linux_virtual_machine" "app" {
   location            = azurerm_resource_group.project.location
   size                = "Standard_F1als_v7"
   admin_username      = "azureadmin"
+  depends_on = [
+    azurerm_subnet_nat_gateway_association.app
+  ]
   custom_data = base64encode(<<-EOF
 #!/bin/bash
-apt-get update -y
-apt-get install -y python3 python3-pip
-
-mkdir -p /opt/flaskapp
-
-cat > /opt/flaskapp/app.py <<'PYTHON'
-from flask import Flask, jsonify
-
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return jsonify(
-        status="online",
-        tier="application",
-        message="Secure Azure Infrastructure"
-    )
-
-@app.route("/health")
-def health():
-    return jsonify(status="healthy")
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-PYTHON
-
-pip3 install flask
-
-cat > /etc/systemd/system/flaskapp.service <<'SERVICE'
-[Unit]
-Description=Flask Application
-After=network.target
-
-[Service]
-ExecStart=/usr/bin/python3 /opt/flaskapp/app.py
-Restart=always
-User=root
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-
-systemctl daemon-reload
-systemctl enable flaskapp
-systemctl start flaskapp
+export DB_PASSWORD='${var.db_password}'
+${file("${path.module}/scripts/app-setup.sh")}
 EOF
   )
   network_interface_ids = [
@@ -363,7 +302,52 @@ EOF
     Tier        = "App"
   }
 }
+# =========================
+# OUTBOUND CONNECTIVITY
+# =========================
 
+resource "azurerm_public_ip" "nat" {
+  name                = "pip-nat"
+  location            = azurerm_resource_group.project.location
+  resource_group_name = azurerm_resource_group.project.name
+  allocation_method   = "Static"
+  sku                 = "Standard"
+
+  tags = {
+    Environment = "Portfolio"
+    Project     = "Secure-Azure-Infrastructure"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "azurerm_nat_gateway" "project" {
+  name                    = "nat-secure-infra"
+  location                = azurerm_resource_group.project.location
+  resource_group_name     = azurerm_resource_group.project.name
+  sku_name                = "Standard"
+  idle_timeout_in_minutes = 10
+
+  tags = {
+    Environment = "Portfolio"
+    Project     = "Secure-Azure-Infrastructure"
+    ManagedBy   = "Terraform"
+  }
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "project" {
+  nat_gateway_id       = azurerm_nat_gateway.project.id
+  public_ip_address_id = azurerm_public_ip.nat.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "app" {
+  subnet_id      = azurerm_subnet.app.id
+  nat_gateway_id = azurerm_nat_gateway.project.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "db" {
+  subnet_id      = azurerm_subnet.db.id
+  nat_gateway_id = azurerm_nat_gateway.project.id
+}
 # =========================
 # DATABASE TIER
 # =========================
@@ -376,7 +360,8 @@ resource "azurerm_network_interface" "db" {
   ip_configuration {
     name                          = "db-ipconfig"
     subnet_id                     = azurerm_subnet.db.id
-    private_ip_address_allocation = "Dynamic"
+    private_ip_address_allocation = "Static"
+    private_ip_address            = "10.20.3.4"
   }
 
   tags = {
@@ -393,6 +378,9 @@ resource "azurerm_linux_virtual_machine" "db" {
   location            = azurerm_resource_group.project.location
   size                = "Standard_F1als_v7"
   admin_username      = "azureadmin"
+  depends_on = [
+    azurerm_subnet_nat_gateway_association.db
+  ]
 
   network_interface_ids = [
     azurerm_network_interface.db.id
@@ -417,12 +405,8 @@ resource "azurerm_linux_virtual_machine" "db" {
 
   custom_data = base64encode(<<-EOF
 #!/bin/bash
-
-apt-get update -y
-apt-get install -y postgresql postgresql-contrib
-
-systemctl enable postgresql
-systemctl start postgresql
+export DB_PASSWORD='${var.db_password}'
+${file("${path.module}/scripts/db-setup.sh")}
 EOF
   )
 

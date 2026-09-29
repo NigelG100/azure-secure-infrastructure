@@ -3,3 +3,9 @@ variable "db_password" {
   type        = string
   sensitive   = true
 }
+
+variable "admin_source_ip" {
+  description = "Public IP/CIDR allowed to SSH to the web tier"
+  type        = string
+}
+
