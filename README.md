@@ -176,6 +176,12 @@ The Azure virtual machines view shows all three Linux VMs in the `rg-secure-infr
 
 ![Azure portal showing the running web, app, and database Linux virtual machines; only the web tier has a public IP](screenshots/azure-three-tier-vms.png)
 
+### Application Tier Network Security Group
+
+The App tier's subnet-associated Network Security Group (`nsg-app`) uses custom inbound rules to permit TCP 5000 from the Web subnet (`10.20.1.0/24`) and TCP 22 from the Azure Bastion subnet (`10.20.20.0/26`). A higher-priority explicit deny for other matching virtual-network inbound traffic overrides the default VNet allow rule. The screenshot verifies the deployed rule configuration; interactive Bastion SSH connectivity was not confirmed.
+
+![Azure App NSG inbound security rules showing Web-to-App TCP 5000, Bastion SSH TCP 22, and explicit VNet inbound denial](screenshots/app-nsg-rules.png)
+
 ## Infrastructure as Code
 
 Terraform is used to define and deploy the Azure infrastructure, including:
@@ -232,6 +238,7 @@ azure-secure-infrastructure/
 |
 |-- screenshots/
 |   |-- azure-three-tier-vms.png
+|   |-- app-nsg-rules.png
 |
 |-- scripts/
 |   |-- web-setup.sh
