@@ -168,6 +168,14 @@ PostgreSQL (Database Tier)
 
 The response is generated from data retrieved by the Flask application from PostgreSQL, validating functional communication across all three tiers while maintaining network segmentation.
 
+## Implementation Screenshots
+
+### Azure Three-Tier Virtual Machines
+
+The Azure virtual machines view shows all three Linux VMs in the `rg-secure-infra` resource group running at the time of capture. Only the public-facing `vm-web` has a public IP address; `vm-app` and `vm-db` have no public IP addresses listed.
+
+![Azure portal showing the running web, app, and database Linux virtual machines; only the web tier has a public IP](screenshots/azure-three-tier-vms.png)
+
 ## Infrastructure as Code
 
 Terraform is used to define and deploy the Azure infrastructure, including:
@@ -221,6 +229,9 @@ azure-secure-infrastructure/
 |-- variables.tf
 |-- outputs.tf
 |-- providers.tf
+|
+|-- screenshots/
+|   |-- azure-three-tier-vms.png
 |
 |-- scripts/
 |   |-- web-setup.sh
