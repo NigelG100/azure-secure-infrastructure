@@ -182,6 +182,12 @@ The App tier's subnet-associated Network Security Group (`nsg-app`) uses custom 
 
 ![Azure App NSG inbound security rules showing Web-to-App TCP 5000, Bastion SSH TCP 22, and explicit VNet inbound denial](screenshots/app-nsg-rules.png)
 
+### Database-Backed Application Response
+
+During end-to-end validation, the Flask API's `/api/database` endpoint returned a JSON response reporting `"database": "connected"` and `"status": "Operational"`. This screenshot documents the response body; the HTTP route and communication path are described in the [Validation](#validation) section.
+
+![JSON response from the database-backed Flask API showing database connected and status Operational](screenshots/database-response.png)
+
 ## Infrastructure as Code
 
 Terraform is used to define and deploy the Azure infrastructure, including:
@@ -239,6 +245,7 @@ azure-secure-infrastructure/
 |-- screenshots/
 |   |-- azure-three-tier-vms.png
 |   |-- app-nsg-rules.png
+|   |-- database-response.png
 |
 |-- scripts/
 |   |-- web-setup.sh
