@@ -94,6 +94,20 @@ resource "azurerm_network_security_group" "app" {
     source_address_prefix      = "10.20.1.0/24"
     destination_address_prefix = "10.20.2.0/24"
   }
+
+  # Allow SSH access through Azure Bastion
+  security_rule {
+    name                       = "Allow-Bastion-SSH"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "10.20.20.0/26"
+    destination_address_prefix = "*"
+  }
+
   security_rule {
     name                       = "Deny-Other-VNet-Inbound"
     priority                   = 400
@@ -105,6 +119,7 @@ resource "azurerm_network_security_group" "app" {
     source_address_prefix      = "VirtualNetwork"
     destination_address_prefix = "*"
   }
+
 
   tags = {
     Environment = "Portfolio"
@@ -128,6 +143,19 @@ resource "azurerm_network_security_group" "db" {
     destination_port_range     = "5432"
     source_address_prefix      = "10.20.2.0/24"
     destination_address_prefix = "10.20.3.0/24"
+  }
+
+  # Allow SSH administration through Azure Bastion
+  security_rule {
+    name                       = "Allow-Bastion-SSH"
+    priority                   = 200
+    direction                  = "Inbound"
+    access                     = "Allow"
+    protocol                   = "Tcp"
+    source_port_range          = "*"
+    destination_port_range     = "22"
+    source_address_prefix      = "10.20.20.0/26"
+    destination_address_prefix = "*"
   }
   security_rule {
     name                       = "Deny-Other-VNet-Inbound"
