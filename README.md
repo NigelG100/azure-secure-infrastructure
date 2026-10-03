@@ -46,7 +46,8 @@ The environment separates the web, application, and database layers into dedicat
 - Microsoft Azure
 - Terraform
 - Azure Virtual Network
-- Azure Virtual Machines![alt text](image.png)
+- Azure Virtual Machines
+- Azure Bastion
 - Network Security Groups
 - Linux / Ubuntu
 - Nginx
@@ -185,12 +186,38 @@ Terraform is used to define and deploy the Azure infrastructure, including:
 
 Terraform provides a repeatable deployment process and keeps the infrastructure configuration version-controlled.
 
+## Prerequisites and Deployment
+
+To reproduce this learning environment, you need:
+
+- An Azure subscription with permission to create networking, virtual machine, NAT Gateway, and Azure Bastion resources. These services may incur charges.
+- [Terraform](https://developer.hashicorp.com/terraform/install) **1.7.0 or later** and the [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
+- An SSH public key at `~/.ssh/id_rsa.pub`, as referenced in `main.tf` (or an updated path to your own public key).
+- Values for Terraform's required `admin_source_ip` (trusted public IP/CIDR for Web-tier SSH, such as a `/32`) and sensitive `db_password`. Supply secrets interactively or through a local, Git-ignored variable file; do not commit them.
+
+From the repository directory, authenticate to the intended Azure subscription and review the proposed deployment:
+
+```powershell
+az login
+az account set --subscription "<subscription-id>"
+terraform init
+terraform validate
+terraform plan
+terraform apply
+terraform output
+```
+
+Terraform prompts for required values unless they have been provided securely by another supported method. The VM configuration uses the scripts in `scripts/` as custom data; verify the HTTP health and database-backed endpoints after provisioning.
+
+**Shared-lab caution:** The `vnet-secure-infra` VNet is also used by the [hybrid enterprise identity lab](https://github.com/NigelG100/azure-hybrid-enterprise-lab). When working in an existing lab, inspect `terraform plan` carefully and do not approve unexpected replacements or deletions affecting shared resources.
+
 ## Repository Structure
 
 ```text
 azure-secure-infrastructure/
 |
 |-- main.tf
+|-- bastion.tf
 |-- variables.tf
 |-- outputs.tf
 |-- providers.tf
