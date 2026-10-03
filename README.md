@@ -46,7 +46,7 @@ The environment separates the web, application, and database layers into dedicat
 - Microsoft Azure
 - Terraform
 - Azure Virtual Network
-- Azure Virtual Machines
+- Azure Virtual Machines![alt text](image.png)
 - Network Security Groups
 - Linux / Ubuntu
 - Nginx
@@ -84,6 +84,14 @@ Network Security Groups enforce communication boundaries between tiers.
 - Terraform state files, variable files containing sensitive values, and local Terraform directories are excluded from source control.
 
 This design reduces unnecessary exposure and demonstrates network segmentation and least-privilege access.
+
+### Azure Bastion and Network Security
+
+Deployed Azure Bastion using Terraform to provide a private administrative access path to Azure virtual machines without exposing public SSH endpoints on the application and database tiers.
+
+Configured Network Security Groups (NSGs) to allow SSH traffic on TCP port 22 from the Azure Bastion subnet (`10.20.20.0/26`) while maintaining explicit deny rules for other virtual-network inbound traffic.
+
+Verified the deployed security rules using Terraform and Azure CLI.
 
 ## Application Flow
 
@@ -226,7 +234,6 @@ Database credentials are supplied at runtime rather than stored directly in the 
 Potential enhancements include:
 
 - Azure Key Vault for centralized secret management
-- Azure Bastion for administrative access
 - HTTPS/TLS termination
 - Azure Monitor and Log Analytics
 - Remote Terraform state using Azure Storage
